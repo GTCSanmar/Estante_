@@ -1,12 +1,12 @@
-# A parte superior do arquivo permanece a mesma
+# pubspec.yaml
 name: estante
 description: "A new Flutter project."
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
+  # Mantemos o seu SDK atual, mas note que ele está desatualizado (3.9.2)
   sdk: ^3.9.2
-# ... parte superior do arquivo ...
 
 dependencies:
   flutter:
@@ -14,22 +14,25 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.3 
   
-# ---
+  # === ADIÇÕES NECESSÁRIAS PARA O PROJETO (CLEAN ARCHITECTURE E JSON) ===
+  # Pacote para as anotações (@JsonSerializable)
+  json_annotation: ^4.8.1
+  
+  # Pacote para requisições HTTP (Necessário para a futura feature de IA)
+  http: ^1.2.1
+  # =====================================================================
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-
-# ---
+  
+  # === ADIÇÕES NECESSÁRIAS PARA O BUILD RUNNER (Geração de book.g.dart) ===
+  build_runner: ^2.4.9
+  json_serializable: ^6.8.0 
+  # ======================================================================
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/  # Use o hífen e liste a pasta. É a forma correta.
-
-# ---
-
-flutter_native_splash:
-  color: "#277c7b"
-  image: "assets/images/Livraria-Logo.png" # Caminho relativo dentro do projeto.
+    - assets/images/ 
