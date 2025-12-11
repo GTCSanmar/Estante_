@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:estante/src/shared/theme/app_theme.dart';
 import 'package:estante/src/shared/services/prefs_service.dart';
-import '../../../../../main.dart'; // Acesso ao prefsService
+import '../../../../../../main.dart'; // Acesso ao prefsService
 
 class PolicyViewerPage extends StatefulWidget {
   final String title;
@@ -28,6 +28,10 @@ class _PolicyViewerPageState extends State<PolicyViewerPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_updateScrollProgress);
+    // Adia a checagem inicial para o próximo frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateScrollProgress(); 
+    });
   }
 
   @override
@@ -42,7 +46,13 @@ class _PolicyViewerPageState extends State<PolicyViewerPage> {
     final currentScroll = _scrollController.offset;
     
     setState(() {
-      _scrollProgress = maxScroll > 0 ? currentScroll / maxScroll : 1.0;
+      // CORREÇÃO: Se não há o que rolar, assume que está no fim
+      if (maxScroll <= 0) {
+        _scrollProgress = 1.0;
+      } else {
+        _scrollProgress = currentScroll / maxScroll;
+      }
+
       if (_scrollProgress >= 0.99 && !_canMarkAsRead) {
         _canMarkAsRead = true;
       }
@@ -51,12 +61,14 @@ class _PolicyViewerPageState extends State<PolicyViewerPage> {
 
   void _markAsRead() async {
     if (_canMarkAsRead) {
+      // 1. Salva o estado de leitura usando o PrefsService
       if (widget.policyKey == 'privacy') {
         await prefsService.setPrivacyPolicyRead(true); 
       } else if (widget.policyKey == 'terms') {
         await prefsService.setTermsRead(true); 
       }
       
+      // 2. Apenas retorna 'true' para a página anterior (ConsentPage)
       if (mounted) {
         Navigator.of(context).pop(true); 
       }
@@ -80,20 +92,24 @@ class _PolicyViewerPageState extends State<PolicyViewerPage> {
           ),
           Expanded(
             child: Container(
+              // Fundo do pergaminho (Bege forte)
               color: const Color(0xFFFFF0C7), 
               padding: const EdgeInsets.all(20.0),
               child: ListView(
                 controller: _scrollController,
                 children: [
+                  // Conteúdo do Pergaminho
                   Text(
                     widget.policyContent,
                     style: TextStyle(
-                      color: AppTheme.darkGreen, 
+                      color: AppTheme.darkGreen, // Cor da Tinta
                       fontSize: 16.0,
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 800),
+                  
+                  // CRÍTICO: ADICIONA ESPAÇO MAIOR PARA FORÇAR O SCROLL
+                  const SizedBox(height: 1500), 
                 ],
               ),
             ),
@@ -108,7 +124,7 @@ class _PolicyViewerPageState extends State<PolicyViewerPage> {
                 foregroundColor: AppTheme.darkGreen,
               ),
               child: Text(
-                _canMarkAsRead ? 'Marcar como Lido' : 'Role para Ler (${(_scrollProgress * 100).toInt()}%)',
+                _canMarkAsRead ? 'Marcar como Lido' : 'Role para Ler (${(_scrollProgress * 100).toInt()}% lido)',
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),

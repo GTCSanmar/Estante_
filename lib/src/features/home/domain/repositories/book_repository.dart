@@ -6,4 +6,6 @@ abstract class BookRepository {
   Future<Book> saveBook(Book book);
   Future<void> deleteBook(String id);
   Future<Book> updateBook(Book book);
+
+    Future<List<Book>> syncBooks();
 }
