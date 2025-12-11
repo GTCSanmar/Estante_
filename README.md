@@ -4,9 +4,10 @@ Este projeto implementa a arquitetura de uma livraria virtual com funcionalidade
 
 🚀 Detalhes da Missão e Grupo
 
-Item
+Este trabalho foi feito para a matéria de Desenvolvimento de Aplicativos para Dispositivos Móveis
 
 Detalhe
+A Livraria do Duque tem como objetivo ser uma estante mobile, onde voce consegue armazenar livros, autores, e também dar notas para os livros que já foram lidos
 
 Turma
 
@@ -43,3 +44,4 @@ Ponto Crítico de Estabilidade (Corrigido):
 Roteamento: O AppConfig foi corrigido para usar initialRoute e routes de forma unificada, resolvendo o erro de navegação DartError: Could not find a generator for route.
 
 Persistência: Erros de schema do Supabase (PGRST204, UUID inválido) foram resolvidos com o mapeamento correto de snake_case (book_id) no DTOs e a inserção do MOCK_READER_UUID.
+
