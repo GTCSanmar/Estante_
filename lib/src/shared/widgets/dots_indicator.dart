@@ -1,34 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:estante/src/shared/theme/app_theme.dart';
 
 class DotsIndicator extends StatelessWidget {
+  final int dotsCount;
+  final int position;
+
   const DotsIndicator({
     super.key,
-    required this.currentIndex,
-    required this.itemCount,
+    required this.dotsCount,
+    required this.position,
   });
-
-  final int currentIndex;
-  final int itemCount;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(itemCount, (index) {
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.symmetric(horizontal: 4.0),
-          height: 8.0,
-          width: currentIndex == index ? 24.0 : 8.0,
-          decoration: BoxDecoration(
-            color: currentIndex == index
-                ? Theme.of(context).colorScheme.primary
-                // ignore: deprecated_member_use
-                : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(4.0),
+      children: List.generate(
+        dotsCount,
+        (index) => Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: 10,
+            width: 10,
+            decoration: BoxDecoration(
+              color: index == position ? AppTheme.gold : AppTheme.darkGreen.withOpacity(0.5),
+              shape: BoxShape.circle,
+              border: Border.all(color: index == position ? AppTheme.gold : Colors.transparent, width: 1.5),
+            ),
           ),
-        );
-      }),
+        ),
+      ),
     );
   }
 }
