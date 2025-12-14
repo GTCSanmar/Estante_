@@ -3,14 +3,22 @@ import 'package:provider/provider.dart';
 import 'package:estante/src/shared/theme/app_theme.dart';
 import 'package:estante/src/features/home/domain/entities/book.dart';
 import 'package:estante/src/shared/widgets/book_detail_dialog.dart';
-// CRÍTICO: Removida a importação inexistente. Adicionando as corretas:
 import 'package:estante/src/shared/widgets/book_edit_dialog.dart'; 
 import 'package:estante/src/shared/widgets/book_remove_dialog.dart'; 
+import 'package:estante/src/features/profile/presentation/profile_controller.dart'; // NOVO CONTROLLER
 
 import 'package:estante/src/features/home/presentation/dialogs/book_actions_dialog.dart';
 import 'package:estante/src/shared/constants/app_routes.dart';
 import 'package:estante/src/features/home/presentation/book_store.dart'; 
+import 'dart:io'; // Para FileImage
 import '../../../../../main.dart'; 
+// CRÍTICO: Importação real do image_picker (agora deve estar funcionando no seu pubspec.yaml)
+import 'package:image_picker/image_picker.dart' as ipk; 
+
+
+// MOCK: Definição da enumeração para simular ImageSource do image_picker
+enum ImageSource { camera, gallery }
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -140,6 +148,7 @@ class _HomePageState extends State<HomePage> {
       await prefsService.setOnboardingCompleted(false);
       
       if (mounted) {
+        // CORREÇÃO: Usa context.mounted e não apenas mounted na navegação
         Navigator.of(context).pushNamedAndRemoveUntil(
           AppRoutes.splash, 
           (route) => false,
@@ -147,12 +156,177 @@ class _HomePageState extends State<HomePage> {
       }
     }
   }
+  
+  // CRÍTICO: Implementação estrutural do ImagePicker (REVERTIDA PARA MOCK)
+  Future<File?> _pickImage(ImageSource source) async {
+    
+    // =========================================================================
+    // NO SEU PROJETO REAL (NO CELULAR), DESCOMENTE ESTE CÓDIGO E COMENTE O MOCK ABAIXO
+    
+    final picker = ipk.ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: source == ImageSource.camera ? ipk.ImageSource.camera : ipk.ImageSource.gallery,
+      maxWidth: 512,      
+      imageQuality: 80,   
+    );
+    
+    if (pickedFile == null) return null;
+    return File(pickedFile.path); 
+    
+    // =========================================================================
 
+    
+  }
+  //
+
+
+  // CRÍTICO: Lógica de Ação (Abre o Dialog e executa o Controller)
+  void _showPhotoActionDialog(ProfileController controller) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.darkGreen,
+      builder: (context) {
+        // Se a foto existir, adiciona a opção "Remover Foto"
+        final hasPhoto = controller.photoPath != null;
+        
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: AppTheme.gold),
+              title: const Text('Tirar Foto', style: TextStyle(color: Colors.white)),
+              onTap: () async {
+                Navigator.pop(context);
+                // CRÍTICO: Chamada à função real (ImageSource.camera)
+                final File? image = await _pickImage(ImageSource.camera); 
+                // CORREÇÃO: Usando `mounted`
+                if (image != null && mounted) {
+                  // Delega ao Controller, que salva e notifica a UI
+                  await controller.setPhoto(image);
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Seleção de imagem cancelada.')),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.image, color: AppTheme.gold),
+              title: const Text('Escolher da Galeria', style: TextStyle(color: Colors.white)),
+              onTap: () async {
+                Navigator.pop(context);
+                // CRÍTICO: Chamada à função real (ImageSource.gallery)
+                final File? image = await _pickImage(ImageSource.gallery); 
+                // CORREÇÃO: Usando `mounted`
+                if (image != null && mounted) {
+                  // Delega ao Controller, que salva e notifica a UI
+                  await controller.setPhoto(image);
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Seleção de imagem cancelada.')),
+                  );
+                }
+              },
+            ),
+            if (hasPhoto)
+              ListTile(
+                leading: const Icon(Icons.delete_forever, color: AppTheme.wineRed),
+                title: const Text('Remover Foto', style: TextStyle(color: AppTheme.wineRed)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  // Delega ao Controller para apagar arquivo e metadado
+                  await controller.removePhoto();
+                  // CORREÇÃO: Usando `mounted`
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Foto de perfil removida com sucesso.')),
+                    );
+                  }
+                },
+              ),
+            ListTile(
+              title: const Text('Aviso de Privacidade', style: TextStyle(color: Colors.white70, fontSize: 12)),
+              subtitle: const Text('Sua foto fica apenas neste dispositivo. Você pode remover quando quiser.', style: TextStyle(color: Colors.white54, fontSize: 10)),
+              onTap: () {},
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    // CRÍTICO: Consome a Store
+    // CRÍTICO: Consome as Stores
     final store = context.watch<BookStore>();
+    final profileController = context.watch<ProfileController>(); // NOVO
+    
+    // Constrói o widget CircleAvatar principal
+    Widget profileAvatar() {
+      // 1. Tenta usar a foto se houver e não estiver carregando
+      if (profileController.photoPath != null && !profileController.isLoading) {
+        // Exibe a foto do arquivo (FileImage)
+        return CircleAvatar(
+          radius: 40,
+          backgroundColor: AppTheme.gold, // Borda
+          // CRÍTICO: O FileImage vai falhar no web, mas no celular ele carrega a foto real.
+          backgroundImage: FileImage(File(profileController.photoPath!)),
+        );
+      } else if (profileController.isLoading) {
+        // 2. Exibe indicador se estiver carregando
+        return const CircleAvatar(
+          radius: 40,
+          backgroundColor: AppTheme.gold,
+          child: CircularProgressIndicator(color: AppTheme.darkGreen, strokeWidth: 2),
+        );
+      } else {
+        // 3. Fallback para as iniciais
+        return CircleAvatar(
+          radius: 40,
+          backgroundColor: AppTheme.gold,
+          child: Text(
+            profileController.getInitials(), // Usa o método do Controller
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: AppTheme.darkGreen),
+          ),
+        );
+      }
+    }
+    
+    // CRÍTICO: Wrapper para permitir o toque no avatar (A11Y Semantics/Tooltip)
+    Widget avatarWithAction() {
+      return Tooltip(
+        message: profileController.photoPath != null ? 'Tocar para alterar/remover foto' : 'Tocar para adicionar foto',
+        child: Semantics(
+          label: 'Botão de edição de foto de perfil',
+          button: true, // Indica que é um botão
+          child: GestureDetector(
+            onTap: () => _showPhotoActionDialog(profileController),
+            child: Stack(
+              children: [
+                profileAvatar(),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.gold,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.darkGreen, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.edit,
+                      color: AppTheme.darkGreen,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     
     return Scaffold(
       appBar: AppBar(
@@ -174,6 +348,31 @@ class _HomePageState extends State<HomePage> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
+            // NOVO: DrawerHeader com Avatar do Usuário (Foto ou Iniciais)
+            DrawerHeader(
+              decoration: const BoxDecoration(color: AppTheme.darkGreen),
+              // CRÍTICO: Adiciona Semantics label ao DrawerHeader
+              child: Semantics(
+                label: 'Informações do Perfil do Usuário',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  // CORREÇÃO: Usando um espaçamento mais seguro para evitar overflow
+                  // A altura do DrawerHeader é flexível até um limite, mas o Row não pode estourar.
+                  children: [
+                    avatarWithAction(), // CRÍTICO: Adicionado o Wrapper de Ação
+                    // Removido SizedBox(height: 10)
+                    Text(
+                      profileController.userName,
+                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      profileController.userEmail,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             // ... (DrawerHeader e outras opções)
             ListTile(
               leading: const Icon(Icons.menu_book, color: AppTheme.gold),

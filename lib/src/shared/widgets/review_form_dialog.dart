@@ -34,7 +34,8 @@ class _ReviewFormDialogState extends State<ReviewFormDialog> {
         id: DateTime.now().microsecondsSinceEpoch.toString(), // ID de mock (será substituído pelo Supabase)
         bookId: widget.bookId,
         readerId: widget.readerId,
-        rating: _rating,
+        // CRÍTICO: Garantindo que o tipo seja double explicitamente (embora Slider retorne double)
+        rating: _rating.toDouble(),
         comment: _commentController.text.trim(),
         publishedAt: DateTime.now(),
       );

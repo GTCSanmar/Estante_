@@ -1,33 +1,32 @@
-import '../../domain/entities/book.dart';
-import '../dtos/book_dto.dart';
-// Note: Este arquivo assume que você criou um book_dto.dart com json_annotation
+// CRÍTICO: Importa a Entity SEM prefixo para que a classe 'Book' seja reconhecida
+import 'package:estante/src/features/home/domain/entities/book.dart'; 
+// CRÍTICO: Importa o DTO com prefixo 'as dto'
+import 'package:estante/src/features/home/data/dtos/book_dto.dart' as dto; 
 
 class BookMapper {
-  
-  // Conversão: DTO (Data) para Entity (Domain)
-  Book toEntity(BookDto dto) {
-    // Implemente lógica de validação aqui se necessário
-    if (dto.id == null || dto.title == null || dto.author == null) {
-      throw const FormatException('BookDto is incomplete for entity conversion.');
-    }
-    
-    return Book(
-      id: dto.id!,
-      title: dto.title!,
-      author: dto.author!,
-      pageCount: dto.pageCount ?? 0,
+  // CRÍTICO: Usa Book (sem prefixo) no tipo de retorno, e dto.BookDto no argumento
+  Book toEntity(dto.BookDto dto) {
+    return Book( // Usa construtor de Book
+      id: dto.id ?? '0',
+      title: dto.title,
+      author: dto.author,
+      // CRÍTICO: Se o page_count for NULL, use 0
+      pageCount: dto.pageCount ?? 0, 
+      // CRÍTICO: Se o is_reading for NULL, use false
       isReading: dto.isReading ?? false,
+      description: dto.description, 
     );
   }
 
-  // Conversão: Entity (Domain) para DTO (Data)
-  BookDto toDto(Book entity) {
-    return BookDto(
-      id: entity.id,
+  dto.BookDto toDto(Book entity) { // Usa dto.BookDto no retorno, e Book no argumento
+    return dto.BookDto(
+      id: entity.id == '0' ? null : entity.id,
       title: entity.title,
       author: entity.author,
-      pageCount: entity.pageCount,
+      // O DTO aceita int? e bool?
+      pageCount: entity.pageCount, 
       isReading: entity.isReading,
+      description: entity.description, 
     );
   }
 }

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:estante/src/shared/theme/app_theme.dart';
 import 'package:estante/src/shared/constants/app_routes.dart'; 
 import 'dart:async';
-// Importa widgets alvo diretamente (para não usar rotas nomeadas)
-import '../../../../../../main.dart'; // Acesso à função initDependencies()
+import '../../../../../../main.dart'; // Acesso ao prefsService
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -19,41 +18,32 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    // Inicia a navegação APÓS a inicialização
-    _startAppInitialization();
+    // Inicia a navegação após o tempo mínimo
+    _startAppFlow();
   }
 
-  // A função agora navega (pushReplacementNamed)
-  Future<void> _startAppInitialization() async {
+  // A função não precisa mais chamar initDependencies(), pois main() já fez isso.
+  Future<void> _startAppFlow() async {
     // 1. Marca o início da execução
     final startTime = DateTime.now();
 
-    // 2. Chama a inicialização das dependências (CRÍTICO: Acontece aqui)
-    try {
-      await initDependencies(); 
-    } catch (e) {
-      // Se houver erro, exibe um alerta e trava (melhor que tela branca)
-      print("ERRO DE DEPENDÊNCIA: $e");
-      // Poderíamos mostrar um AlertDialog aqui, mas simplificamos para o log.
-    }
-    
-    // 3. Leitura e decisão de rota
+    // 2. Leitura e decisão de rota (dependências jão estão prontas)
     final onboardingCompleted = prefsService.getOnboardingCompleted;
     
-    // 4. Calcula o tempo restante para cumprir a duração mínima
+    // 3. Calcula o tempo restante para cumprir a duração mínima
     final endTime = DateTime.now();
     final timeElapsedMs = endTime.difference(startTime).inMilliseconds;
     final timeToWaitMs = _minimumSplashDurationMs - timeElapsedMs;
     
-    // 5. Aguarda o tempo restante para garantir os 2 segundos totais
+    // 4. Aguarda o tempo restante para garantir os 2 segundos totais
     if (timeToWaitMs > 0) {
       await Future.delayed(Duration(milliseconds: timeToWaitMs));
     }
     
-    // 6. Navega para a rota alvo
+    // 5. Navega para a rota alvo
     if (mounted) {
       final targetRoute = onboardingCompleted ? AppRoutes.home : AppRoutes.onboarding;
-      // Navega (O Navigator deve estar disponível AGORA)
+      // Navega por substituição
       Navigator.pushReplacementNamed(context, targetRoute);
     }
   }

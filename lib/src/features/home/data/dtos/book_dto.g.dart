@@ -8,8 +8,8 @@ part of 'book_dto.dart';
 
 BookDto _$BookDtoFromJson(Map<String, dynamic> json) => BookDto(
   id: json['id'] as String?,
-  title: json['title'] as String?,
-  author: json['author'] as String?,
+  title: json['title'] as String,
+  author: json['author'] as String,
   pageCount: (json['pageCount'] as num?)?.toInt(),
   isReading: json['isReading'] as bool?,
 );

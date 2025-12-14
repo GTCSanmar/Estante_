@@ -1,26 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:estante/src/app_config.dart';
+// CRÍTICO: CORRIGIDO o caminho de importação para a página de Consentimento
+import 'package:estante/src/features/onboarding/presentation/pages/consent_page.dart'; 
 import 'package:estante/src/shared/theme/app_theme.dart';
-import 'package:estante/src/shared/widgets/dots_indicator.dart'; 
-import 'package:estante/src/shared/constants/app_routes.dart';
-import 'package:estante/src/shared/services/prefs_service.dart';
-import '../../../../../main.dart'; // Acesso ao prefsService
-import 'consent_page.dart'; 
-import 'page_one.dart'; 
-import 'page_two.dart'; 
-import 'go_to_access_page.dart'; 
 
-class OnboardPage extends StatefulWidget {
-  const OnboardPage({super.key});
+// CRÍTICO: CORRIGIDO os nomes dos arquivos de Onboarding
+import 'package:estante/src/features/onboarding/presentation/pages/page_one.dart'; 
+import 'package:estante/src/features/onboarding/presentation/pages/page_two.dart'; 
+import 'package:estante/src/features/onboarding/presentation/pages/go_to_access_page.dart'; 
+
+
+class OnboardingPage extends StatefulWidget {
+  const OnboardingPage({super.key});
 
   @override
-  State<OnboardPage> createState() => _OnboardPageState();
+  State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardPageState extends State<OnboardPage> {
+class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  bool _canFinalize = false; 
+  bool _canFinalize = false; // Estado do aceite (LGPD)
   
+  // Lista de páginas do fluxo (4 páginas no total)
   late final List<Widget> _pages;
 
   @override
@@ -30,25 +32,27 @@ class _OnboardPageState extends State<OnboardPage> {
     _pages = [
       const PageOne(), 
       const PageTwo(), 
-      ConsentPage(onConsentChanged: (canFinalize) {
-        // CORREÇÃO CRÍTICA: Envolve o setState em addPostFrameCallback.
-        // Isso garante que a reconstrução do OnboardPage ocorra APÓS o build inicial
-        // (eliminando o erro 'setState() called during build').
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-            setState(() {
-              _canFinalize = canFinalize;
-            });
+      // CRÍTICO: Passa o callback de estado para o ConsentPage
+      ConsentPage(onConsentChanged: (canFinalize) { 
+        setState(() {
+          _canFinalize = canFinalize;
         });
       }),
       const GoToAccessPage(),
     ];
-    _pageController.addListener(() {
-      setState(() {
-        _currentPage = _pageController.page?.round() ?? 0;
+    
+    // CRÍTICO: Adia a adição do Listener para depois do primeiro frame (PostFrameCallback)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pageController.addListener(() {
+        // O setState é seguro aqui, pois a UI já está construída
+        setState(() {
+          _currentPage = _pageController.page?.round() ?? 0;
+        });
       });
     });
   }
 
+  // --- Métodos de Navegação (Omitidos por brevidade) ---
   void _nextPage() {
     if (_currentPage < _pages.length - 1) {
       _pageController.nextPage(
@@ -58,11 +62,9 @@ class _OnboardPageState extends State<OnboardPage> {
     }
   }
   
-  // CRÍTICO: Novo método para finalizar o Onboarding (usado no botão Finalizar na página 2)
   void _handleConsentFinalization() {
     if (_canFinalize) {
-       // O Opt-in já foi salvo na ConsentPage, apenas avançamos
-       _nextPage(); // Vai para a GoToAccessPage (último passo)
+       _nextPage(); 
     }
   }
 
@@ -75,6 +77,11 @@ class _OnboardPageState extends State<OnboardPage> {
     }
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,17 +101,19 @@ class _OnboardPageState extends State<OnboardPage> {
             Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
-                padding: const EdgeInsets.all(30.0),
+                // CRÍTICO: Padding ajustado para mover o botão mais para cima (horizontal 24, vertical 10)
+                padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 40.0), 
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   decoration: BoxDecoration(
                     color: AppTheme.darkGreen.withOpacity(0.9), 
                     border: const Border(top: BorderSide(color: AppTheme.gold, width: 0.5)),
+                    borderRadius: BorderRadius.circular(12), // Adicionado para melhor UX
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Botão VOLTAR (Visível em todas as páginas antes da última)
+                      // Botão VOLTAR
                       if (_currentPage > 0) 
                         TextButton(
                           onPressed: _previousPage,
@@ -131,7 +140,8 @@ class _OnboardPageState extends State<OnboardPage> {
                       // Botão AVANÇAR / FINALIZAR
                       if (isConsentPage)
                          ElevatedButton(
-                           onPressed: _canFinalize ? _handleConsentFinalization : null, // Chama a função de finalização
+                           // CRÍTICO: O _canFinalize agora é controlado pela ConsentPage
+                           onPressed: _canFinalize ? _handleConsentFinalization : null, 
                            style: ElevatedButton.styleFrom(
                              backgroundColor: _canFinalize ? AppTheme.gold : AppTheme.darkGreen.withOpacity(0.5),
                            ),

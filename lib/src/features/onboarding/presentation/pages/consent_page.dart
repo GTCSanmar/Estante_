@@ -50,13 +50,13 @@ class _ConsentPageState extends State<ConsentPage> {
   @override
   void initState() {
     super.initState();
-    // 1. Inicializa o estado de consentimento e leitura
-    _checkInitialStatus();
+    // CRÍTICO: Adia a checagem inicial para depois do primeiro frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkInitialStatus(); // 1. Inicializa o estado de consentimento e leitura
+        _updateScrollProgress(); // Checagem inicial do progresso
+    });
     // 2. Adiciona o Listener do Scroll
     _scrollController.addListener(_updateScrollProgress);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateScrollProgress(); // Checagem inicial
-    });
   }
 
   @override
@@ -72,8 +72,8 @@ class _ConsentPageState extends State<ConsentPage> {
     if (prefsService.getOnboardingCompleted) {
        _canMarkAsRead = true;
     }
-    // Notifica o PageView do estado inicial
-    _updateConsentState();
+    // Notifica o PageView do estado inicial (seguro, pois estamos no postFrameCallback)
+    _updateConsentState(); 
   }
 
   // --- Lógica de Scroll (RF-3) ---
@@ -108,18 +108,21 @@ class _ConsentPageState extends State<ConsentPage> {
 
   // --- Lógica de Consentimento (RF-4) ---
   void _updateConsentState() {
-    // Se a leitura foi confirmada, o PageView pode habilitar o botão
-    if(_canMarkAsRead) {
-       // Notifica o PageView para habilitar o botão Finalizar
-       widget.onConsentChanged(true); 
-    } else {
-       widget.onConsentChanged(false);
-    }
+    // CRÍTICO: O OnboardPage SÓ pode avançar se o conteúdo foi lido E o checkbox foi marcado
+    final bool canAdvance = _canMarkAsRead && _consentGiven;
+    
+    widget.onConsentChanged(canAdvance);
   }
 
   // A lógica de aceitação está no PageView, mas o Opt-in é salvo aqui
-  void _acceptOptIn() {
-    prefsService.setMarketingConsent(_consentGiven); 
+  void _acceptOptIn(bool? value) {
+    if (value != null && _canMarkAsRead) {
+      setState(() {
+        _consentGiven = value;
+        prefsService.setMarketingConsent(_consentGiven); // Salva o Opt-in
+        _updateConsentState(); // Reavalia a condição de avanço
+      });
+    }
   }
 
 
@@ -181,12 +184,7 @@ class _ConsentPageState extends State<ConsentPage> {
               Checkbox(
                 // Checkbox só pode ser alterado se o conteúdo foi lido
                 value: _consentGiven,
-                onChanged: isReadyToConsent ? (bool? value) {
-                  setState(() {
-                    _consentGiven = value ?? false;
-                    _acceptOptIn(); // Salva o Opt-in
-                  });
-                } : null, // Desabilita o checkbox se não leu
+                onChanged: isReadyToConsent ? _acceptOptIn : null, // Chama a função corrigida
                 activeColor: AppTheme.gold,
               ),
               Flexible(

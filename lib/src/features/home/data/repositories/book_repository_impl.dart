@@ -1,3 +1,4 @@
+// CRÍTICO: Importa a Entity SEM prefixo
 import 'package:estante/src/features/home/domain/entities/book.dart';
 import 'package:estante/src/features/home/domain/repositories/book_repository.dart';
 // Importa Data Sources
@@ -5,7 +6,10 @@ import 'package:estante/src/features/home/data/datasources/book_supabase_data_so
 import 'package:estante/src/features/home/data/datasources/book_local_data_source.dart'; 
 // Importa Mapper
 import 'package:estante/src/features/home/data/mappers/book_mapper.dart'; 
-import 'package:estante/src/features/home/data/dtos/book_dto.dart'; 
+// CRÍTICO: Importa o DTO com prefixo 'as dto'
+import 'package:estante/src/features/home/data/dtos/book_dto.dart' as dto; 
+// CRÍTICO: Importa o ReviewRepository para a exclusão em cascata
+import 'package:estante/src/features/review/domain/repositories/review_repository.dart';
 
 
 // O BookRepositoryImpl DEVE IMPLEMENTAR BookRepository
@@ -14,12 +18,15 @@ class BookRepositoryImpl implements BookRepository {
   final BookRemoteDataSource remoteDataSource;
   final BookLocalDataSource localDataSource;
   final BookMapper mapper;
+  // CRÍTICO: Injeta o ReviewRepository para Deleção em Cascata
+  final ReviewRepository reviewRepository;
   
-  // CONSTRUTOR CORRIGIDO: Aceita o Data Source remoto e local
+  // CONSTRUTOR CORRIGIDO: Aceita o ReviewRepository
   BookRepositoryImpl({
     required this.remoteDataSource,
     required this.localDataSource,
     required this.mapper,
+    required this.reviewRepository, // Recebe o ReviewRepository
   });
   
   // ----------------------------------------------------
@@ -27,13 +34,13 @@ class BookRepositoryImpl implements BookRepository {
   // ----------------------------------------------------
   
   @override
+  // CRÍTICO: Retorna List<Book>
   Future<List<Book>> getBooks() async {
-    // 1. Tentar carregar do cache local
     final localDtos = await localDataSource.getBooks();
 
     if (localDtos.isNotEmpty) {
       print("INFO: Carregando ${localDtos.length} livros do cache local.");
-      // Mapeia DTOs locais para Entities e retorna
+      // CRÍTICO: Mapeia de dto.BookDto para Book
       final localBooks = localDtos.map((dto) => mapper.toEntity(dto)).toList();
       
       // Inicia a sincronização em background (fire-and-forget)
@@ -42,36 +49,33 @@ class BookRepositoryImpl implements BookRepository {
       return localBooks;
     } else {
       print("INFO: Cache local vazio. Forçando sincronização completa.");
-      // Se não houver cache, força a sincronização completa
       return syncBooks(); 
     }
   }
   
   // Sincronização Push-Then-Pull (Remote -> Local)
   @override
+  // CRÍTICO: Retorna List<Book>
   Future<List<Book>> syncBooks() async {
     try {
-      // 1. PULL: Baixar os dados mais recentes do Supabase
+      // remoteDataSource agora retorna Book
       final remoteBooks = await remoteDataSource.getBooks();
       print("INFO: Sincronização Pull - Baixados ${remoteBooks.length} livros do Supabase.");
 
-      // 2. Mapear Entities para DTOs (para salvar no cache)
+      // CRÍTICO: Mapeamento usando dto.BookDto
       final remoteDtos = remoteBooks.map((book) => mapper.toDto(book)).toList();
       
-      // 3. CACHE: Salvar a lista mais recente no cache local
-      await localDataSource.saveBooks(remoteDtos as List<BookDto>);
+      await localDataSource.saveBooks(remoteDtos.cast<dto.BookDto>());
 
-      // 4. Retornar a lista de Entidades
       return remoteBooks;
     } catch (e) {
       print("ERRO CRÍTICO na sincronização (BookRepository): $e");
-      // Se a sincronização falhar (ex: sem internet), retornar o cache antigo (ou lançar erro se o cache também falhar)
       final localDtos = await localDataSource.getBooks();
       if (localDtos.isNotEmpty) {
          print("INFO: Falha na conexão. Retornando ${localDtos.length} livros do cache antigo.");
+         // CRÍTICO: Mapeamento usando dto.BookDto
          return localDtos.map((dto) => mapper.toEntity(dto)).toList();
       }
-      // Lança o erro se não houver cache para fallback
       throw Exception('Não foi possível sincronizar ou carregar do cache: $e');
     }
   }
@@ -81,27 +85,41 @@ class BookRepositoryImpl implements BookRepository {
   // ----------------------------------------------------
 
   @override
+  // CRÍTICO: Argumento e Retorno usam Book
   Future<Book> saveBook(Book book) async {
-    // 1. PUSH: Salva no servidor remoto (Supabase)
-    final savedBook = await remoteDataSource.saveBook(book); 
-    
-    // 2. PULL: Recarrega do servidor e atualiza o cache local (garantindo o novo ID e o estado mais recente)
-    // Isso é o PUSH-THEN-PULL
-    syncBooks(); 
-    
-    return savedBook;
+    try {
+      final savedBook = await remoteDataSource.saveBook(book); 
+      syncBooks(); // PUSH-THEN-PULL
+      return savedBook;
+    } catch (e) {
+      print("ERRO ao salvar livro no Repositório: $e");
+      throw Exception("Falha ao salvar livro: ${e.toString()}");
+    }
   }
 
   @override
   Future<void> deleteBook(String id) async {
-    // 1. PUSH: Deleta no servidor remoto
-    await remoteDataSource.deleteBook(id);
-    
-    // 2. PULL: Recarrega do servidor e atualiza o cache local
-    syncBooks(); 
+    try {
+      // 1. DELEÇÃO EM CASCATA
+      final reviews = await reviewRepository.getReviewsByBookId(id);
+      
+      for (var review in reviews) {
+        await reviewRepository.deleteReview(review.id);
+        print("INFO: Review ${review.id} deletada com sucesso.");
+      }
+
+      // 2. PUSH: Deleta no servidor remoto
+      await remoteDataSource.deleteBook(id); 
+      
+      // 3. PULL: Recarrega do servidor e atualiza o cache local
+      syncBooks(); 
+      print("INFO: Livro e avaliações deletadas com sucesso.");
+    } catch (e) {
+      print("ERRO ao deletar livro no Repositório (ID: $id): $e"); 
+      throw Exception("Falha ao deletar livro (ID: $id): ${e.toString()}"); 
+    }
   }
   
-  // Update é um save no nosso modelo
   @override
   Future<Book> updateBook(Book book) => saveBook(book); 
 }
