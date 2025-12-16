@@ -1,35 +1,47 @@
-# A parte superior do arquivo permanece a mesma
+# pubspec.yaml
 name: estante
-description: "A new Flutter project."
-publish_to: 'none'
+description: Catálogo e Inventário de Livros (Livraria do Duque).
+
+publish_to: 'none' # Impede a publicação para pub.dev
+
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.2
-# ... parte superior do arquivo ...
+  # Mantemos o seu SDK atual
+  sdk: '>=3.9.2 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.2.3 
   
-# ---
+  # === DEPENDÊNCIAS DE ARQUITETURA E ESTADO ===
+  shared_preferences: ^2.2.3 # Persistência Local (Cache-First/LGPD)
+  provider: ^6.1.1 # Gerenciamento de Estado Reativo
+  
+  # === PERSISTÊNCIA, JSON E CONEXÃO ===
+  supabase_flutter: ^2.5.0 # Backend Remoto (Fonte de Verdade)
+  json_annotation: ^4.8.1 # Geração de DTOs (Data Transfer Objects)
+  http: ^1.2.1 # Chamadas de API REST (Gemini)
+  
+  # === FEATURE: AVATAR COM FOTO (PRD) ===
+  image_picker: ^1.2.1 # CRÍTICO: Acesso a Câmera/Galeria
+  path_provider: ^2.1.2 # Para obter diretórios de arquivos locais (LocalPhotoStore)
+  path: ^1.9.1 # Para manipular caminhos de arquivo
+  mockito: ^5.6.1 # Para testes unitários (Mocks)
 
+  # Pacotes Removidos (Não essenciais para o core): dtd, google_fonts, json_rpc_2, stack_trace, url_launcher, web
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
-
-# ---
+  flutter_lints: ^6.0.0
+  
+  # === BUILD RUNNER E TESTES ===
+  build_runner: ^2.4.9 # CRÍTICO: Gerador de código para json_serializable
+  json_serializable: ^6.8.0 # Ferramenta que gera o código DTO
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/images/  # Use o hífen e liste a pasta. É a forma correta.
-
-# ---
-
-flutter_native_splash:
-  color: "#277c7b"
-  image: "assets/images/Livraria-Logo.png" # Caminho relativo dentro do projeto.
+    - assets/images/
